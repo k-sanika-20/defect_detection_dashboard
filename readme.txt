@@ -15,7 +15,7 @@ This Streamlit app uses a U-Net model to segment and visualize six types of defe
 - The app displays a color-coded overlay of predicted defect regions.
 
 ## 🔗 Live Demo
-Coming soon...
+https://defect-detection-dashboard.streamlit.app/
 
 ## Run locally
 ```bash
