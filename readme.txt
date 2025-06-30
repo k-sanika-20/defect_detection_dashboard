@@ -1,3 +1,23 @@
-Step 1. Install Streamlit => pip install streamlit
-Step 2. Open terminal in this folder 
-Step 3. Run this command => streamlit run app.py
+# Defect Detection in Additive Manufacturing
+
+This Streamlit app uses a U-Net model to segment and visualize six types of defects in grayscale LPBF (Laser Powder Bed Fusion) images.
+
+## Defect Classes
+- Swelling
+- Spatter
+- Misprint
+- Over Melting
+- Under Melting
+- No Defect (background)
+
+## How it works
+- Upload a grayscale image.
+- The app displays a color-coded overlay of predicted defect regions.
+
+## 🔗 Live Demo
+Coming soon...
+
+## Run locally
+```bash
+pip install -r requirements.txt
+streamlit run app.py
