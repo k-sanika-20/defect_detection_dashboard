@@ -2,10 +2,15 @@ import streamlit as st
 import torch
 import cv2
 import numpy as np
+import urllib.request
+import os
 from PIL import Image
 from unet_model import UNet
 
-# === Color map for overlay ===
+# === Constants ===
+MODEL_PATH = "after_melting_unet_model_2.pth"
+MODEL_URL = "https://github.com/k-sanika-20/defect_detection_dashboard/releases/download/v1.0/after_melting_unet_model_2.pth"
+
 colors = [
     (128, 128, 128),  # Background [0] - No Defect
     (255, 0, 0),      # [5] Swelling
@@ -15,17 +20,27 @@ colors = [
     (255, 0, 255),    # [11] Under Melting
 ]
 
+# === Download model if not present ===
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        with st.spinner("Downloading model..."):
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+            st.success("Model downloaded successfully!")
+
+download_model()
+
 # === Load model ===
 @st.cache_resource
 def load_model():
     model = UNet(in_channels=1, out_channels=6)
-    model.load_state_dict(torch.load("after_melting_unet_model_2.pth", map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
     model.eval()
     return model
 
 model = load_model()
 
-st.title("Defect Detection Dashboard")
+# === UI Title ===
+st.title("🧠 Defect Detection Dashboard")
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose an option", ["Upload Image"])
 
@@ -36,15 +51,14 @@ def preprocess_image(image_rgb):
     tensor = torch.tensor(resized, dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 255.0
     return tensor, gray.shape[::-1]  # (width, height)
 
-# === Postprocessing: Generate overlay image ===
+# === Postprocessing: Create overlay ===
 def create_overlay(pred_mask, original_shape, original_image):
     pred_mask = torch.sigmoid(pred_mask)
     pred_mask = (pred_mask > 0.5).float()
-
     masks = pred_mask.squeeze().cpu().numpy()
     masks = np.array([cv2.resize(m, original_shape) for m in masks])  # Resize masks back
 
-    overlay = np.zeros((*original_shape[::-1], 3), dtype=np.uint8)  # (height, width, 3)
+    overlay = np.zeros((*original_shape[::-1], 3), dtype=np.uint8)  # (H, W, 3)
     for i, mask in enumerate(masks):
         color_mask = np.stack([mask * c for c in colors[i]], axis=-1)
         overlay = np.where(mask[..., None] > 0, color_mask.astype(np.uint8), overlay)
@@ -54,15 +68,15 @@ def create_overlay(pred_mask, original_shape, original_image):
 
 # === Main UI ===
 if app_mode == "Upload Image":
-    st.header("Upload an Image")
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png"])
+    st.header("📷 Upload an Image for Defect Detection")
+    uploaded_file = st.file_uploader("Choose a grayscale image (JPG or PNG)...", type=["jpg", "png"])
 
     if uploaded_file is not None:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         image_bgr = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
 
         if image_bgr is None:
-            st.error("Could not decode the image.")
+            st.error("❌ Could not decode the image.")
         else:
             image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
             st.image(image_rgb, caption="Uploaded Image", use_container_width=True)
@@ -73,15 +87,14 @@ if app_mode == "Upload Image":
                 output = model(input_tensor)
 
             overlay_img = create_overlay(output, original_size, image_rgb)
-            st.image(overlay_img, caption="Overlayed Defect Mask", use_container_width=True)
+            st.image(overlay_img, caption="🩻 Overlayed Defect Mask", use_container_width=True)
 
 # === Sidebar Footer ===
-st.sidebar.markdown("### Defect Detection Dashboard")
-st.sidebar.markdown("This app predicts defect regions in L-PBF parts using a U-Net segmentation model.")
+st.sidebar.markdown("### ℹ️ About")
+st.sidebar.markdown("This app segments and visualizes defect regions in L-PBF parts using a U-Net model.")
 
 # === Legend Display ===
 st.sidebar.markdown("### 🟦 Defect Class Legend")
-
 legend = {
     "No Defect [0]": (128, 128, 128),
     "Swelling [5]": (255, 0, 0),
